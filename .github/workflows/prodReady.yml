@@ -1,0 +1,49 @@
+name: LT Prod Ready
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Runs every 5 minutes on Sundays (UTC)
+    # This avoids DST issues. Your script should "bail" unless it's within your window.
+    - cron: "*/5 * * * 0"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run prodReady
+        env:
+          LT_EMAIL: ${{ secrets.LT_EMAIL }}
+          LT_PASSWORD: ${{ secrets.LT_PASSWORD }}
+          CI: "true"
+          TZ: "America/New_York"
+        run: node prodReady.js
+
+      # Upload artifacts on failure (screenshots, trace, logs if you save them)
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lt-debug
+          path: |
+            artifacts/**
+            playwright-report/**
+            test-results/**
+          if-no-files-found: ignore
