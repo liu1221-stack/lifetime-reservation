@@ -25,6 +25,17 @@ import {
 const EMAIL = process.env[ENV.EMAIL];
 const PASSWORD = process.env[ENV.PASSWORD];
 
+function withinWindow(
+  now,
+  openAt,
+  earlyMs = 2 * 60 * 1000,
+  lateMs = 5 * 60 * 1000
+) {
+  const t = now.getTime();
+  const o = openAt.getTime();
+  return t >= o - earlyMs && t <= o + lateMs;
+}
+
 async function dismissCookieBanner(page) {
   const acceptBtn = page.getByRole("button", { name: /accept all/i });
   try {
@@ -69,20 +80,12 @@ async function clickReserveAndFinish(page) {
   throw new Error("Timed out (5 minutes) waiting for Reserve button.");
 }
 
-async function run() {
+async function run({ classDate, openAt }) {
   if (!EMAIL || !PASSWORD) {
     throw new Error(`Missing ${ENV.EMAIL} or ${ENV.PASSWORD} environment variables.`);
   }
 
-  const classDate = computeTargetClassDate(TARGET_WEEKDAY);
-  const openAt = computeOpenTimeForClass(
-    classDate,
-    OPEN_TIME.hour,
-    OPEN_TIME.minute,
-    OPEN_TIME.second
-  );
   const readyAt = new Date(openAt.getTime() - READY_MINUTES_BEFORE * 60000);
-
   const selectedDate = toISODate(classDate);
 
   const scheduleUrl = buildScheduleUrl({
@@ -191,7 +194,24 @@ async function run() {
   }
 }
 
-run().catch((err) => {
+// ---- compute openAt BEFORE window check ----
+const classDate = computeTargetClassDate(TARGET_WEEKDAY);
+const openAt = computeOpenTimeForClass(
+  classDate,
+  OPEN_TIME.hour,
+  OPEN_TIME.minute,
+  OPEN_TIME.second
+);
+
+const now = new Date();
+if (!withinWindow(now, openAt)) {
+  console.log("Not in booking window. Exiting.");
+  console.log("Now:", now.toString());
+  console.log("OpenAt:", openAt.toString());
+  process.exit(0);
+}
+
+run({ classDate, openAt }).catch((err) => {
   console.error("Error:", err);
   process.exitCode = 1;
 });

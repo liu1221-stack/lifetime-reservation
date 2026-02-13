@@ -8,8 +8,8 @@ export function msUntilDateTime(targetDate, nowMs = Date.now()) {
 
 export function toISODate(date) {
   const year = date.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -17,10 +17,10 @@ export function toISODate(date) {
 
 // Sun=0 Mon=1 ... Sat=6
 export function nextWeekdayOnOrAfter(baseDate, weekday) {
-  const d = new Date(baseDate);
-  const diff = (weekday - d.getDay() + 7) % 7;
-  d.setDate(d.getDate() + diff);
-  return d;
+  const date = new Date(baseDate);
+  const diff = (weekday - date.getDay() + 7) % 7;
+  date.setDate(date.getDate() + diff);
+  return date;
 }
 
 /**
