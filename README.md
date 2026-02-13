@@ -319,6 +319,28 @@ Finish clicked. Reservation complete.
 
 ---
 
+
+## 👥 Using This Repo Yourself (Fork/Clone Setup)
+
+Cloning or forking this repo does **not** automatically run anything. GitHub Actions only runs on your own GitHub repo when you enable it and add your own secrets.
+
+### Fork
+1. Click **Fork** on GitHub to copy this repo into your own GitHub account.
+2. In your forked repo, go to:
+   - **Settings → Actions → General**
+   - Make sure **Actions are enabled**.
+3. Add your Lifetime credentials as repo secrets:
+   - **Settings → Secrets and variables → Actions → New repository secret**
+   - Add:
+     - `LT_EMAIL` = your Lifetime login email
+     - `LT_PASSWORD` = your Lifetime login password
+4. (Optional but recommended) Verify workflow permissions:
+   - **Settings → Actions → General → Workflow permissions**
+   - Usually “Read repository contents” is enough for this project.
+
+
+---
+
 # 🏁 Summary
 
 This bot:
