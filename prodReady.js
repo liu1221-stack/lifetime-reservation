@@ -7,6 +7,9 @@ import {
   cardMatches,
   sleep,
   msUntilDateTime,
+  withinWindow,
+  clickReserveAndFinish,
+  dismissCookieBanner,
 } from "./src/utils.js";
 import {
   ENV,
@@ -15,8 +18,6 @@ import {
   MUST_INCLUDE,
   OPEN_TIME,
   READY_MINUTES_BEFORE,
-  RESERVE_RETRY_MS,
-  RESERVE_MAX_WAIT_MS,
   USE_WAIT_UNTIL_OPEN,
   LOGIN_URL,
   SCHEDULE_DEFAULTS,
@@ -25,64 +26,11 @@ import {
 const EMAIL = process.env[ENV.EMAIL];
 const PASSWORD = process.env[ENV.PASSWORD];
 
-function withinWindow(
-  now,
-  openAt,
-  earlyMs = 2 * 60 * 1000,
-  lateMs = 5 * 60 * 1000
-) {
-  const t = now.getTime();
-  const o = openAt.getTime();
-  return t >= o - earlyMs && t <= o + lateMs;
-}
-
-async function dismissCookieBanner(page) {
-  const acceptBtn = page.getByRole("button", { name: /accept all/i });
-  try {
-    await acceptBtn.waitFor({ state: "visible", timeout: 6000 });
-    console.log("Cookie banner detected. Clicking Accept All...");
-    await acceptBtn.click();
-    await sleep(400);
-  } catch {
-    console.log("No cookie banner.");
-  }
-}
-
-async function clickReserveAndFinish(page) {
-  const reserveBtn = page.getByRole("button", { name: /^Reserve$/i });
-  const finishBtn = page.getByRole("button", { name: /^Finish$/i });
-  const waitlistBtn = page.getByRole("button", { name: /waitlist/i });
-
-  const start = Date.now();
-
-  while (Date.now() - start < RESERVE_MAX_WAIT_MS) {
-    if (await reserveBtn.isVisible().catch(() => false)) {
-      console.log("Reserve visible. Clicking Reserve...");
-      await reserveBtn.click();
-
-      console.log("Waiting for Finish...");
-      await finishBtn.waitFor({ state: "visible", timeout: 15000 });
-      await finishBtn.click();
-
-      console.log("Finish clicked. Reservation complete.");
-      return;
-    }
-
-    if (await waitlistBtn.isVisible().catch(() => false)) {
-      console.log("Class is waitlisted. Stopping retries.");
-      return;
-    }
-
-    await sleep(RESERVE_RETRY_MS);
-    await page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
-  }
-
-  throw new Error("Timed out (5 minutes) waiting for Reserve button.");
-}
-
 async function run({ classDate, openAt }) {
   if (!EMAIL || !PASSWORD) {
-    throw new Error(`Missing ${ENV.EMAIL} or ${ENV.PASSWORD} environment variables.`);
+    throw new Error(
+      `Missing ${ENV.EMAIL} or ${ENV.PASSWORD} environment variables.`
+    );
   }
 
   const readyAt = new Date(openAt.getTime() - READY_MINUTES_BEFORE * 60000);
@@ -103,10 +51,11 @@ async function run({ classDate, openAt }) {
   console.log("Ready at:", readyAt.toString());
   console.log("Schedule URL:", scheduleUrl);
 
+  // Sleep until we want to start doing browser work
   if (USE_WAIT_UNTIL_OPEN) {
     const msToReady = msUntilDateTime(readyAt);
     if (msToReady > 0) {
-      console.log("Sleeping until ready time:", msToReady);
+      console.log("Sleeping until ready time (ms):", msToReady);
       await sleep(msToReady);
     }
   }
@@ -139,16 +88,20 @@ async function run({ classDate, openAt }) {
 
     await dismissCookieBanner(page);
 
+    // Wait for schedule to render
     await page.locator('[data-testid="classCell"]').first().waitFor({
       state: "visible",
       timeout: 20000,
     });
 
+    // Find target day column
     const days = page.locator("div.calendar > div.day");
     const dayCount = await days.count();
     if (dayCount < 7) throw new Error("Could not find 7 day columns.");
 
     const targetCol = days.nth(TARGET_DAY_INDEX);
+
+    // Find target card in that day column
     const cards = targetCol.locator('[data-testid="classCell"]');
     const cardCount = await cards.count();
 
@@ -167,22 +120,27 @@ async function run({ classDate, openAt }) {
       throw new Error("Could not find matching class card.");
     }
 
+    // Click into class details BEFORE open time, then wait there
+    console.log("Clicking class (entering details page)...");
+    const classLink = targetCard.locator('[data-testid="classLink"]').first();
+
+    await Promise.all([
+      page.waitForURL(/class-details\.html/i, { timeout: 15000 }),
+      classLink.click(),
+    ]);
+
+    // Cookie banner can sometimes re-appear on details
+    await dismissCookieBanner(page);
+
+    console.log("On class details page. Waiting until open time...");
     if (USE_WAIT_UNTIL_OPEN) {
       const msToOpen = msUntilDateTime(openAt);
       if (msToOpen > 0) {
-        console.log("Waiting until open:", msToOpen);
+        console.log("Waiting until open (ms):", msToOpen);
         if (msToOpen > 400) await sleep(msToOpen - 200);
         while (msUntilDateTime(openAt) > 0) {}
       }
     }
-
-    console.log("Clicking class...");
-    const classLink = targetCard.locator('[data-testid="classLink"]').first();
-
-    await Promise.all([
-      page.waitForURL(/class-details\.html/i),
-      classLink.click(),
-    ]);
 
     console.log("Attempting reserve (retry up to 5 minutes)...");
     await clickReserveAndFinish(page);

@@ -1,3 +1,9 @@
+import {
+  RESERVE_RETRY_MS,
+  RESERVE_MAX_WAIT_MS,
+} from "./constants.js";
+
+
 export function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -71,4 +77,59 @@ export function buildScheduleUrl({
 
 export function cardMatches(cardText, mustInclude) {
   return mustInclude.every((s) => cardText.includes(s));
+}
+
+export function withinWindow(
+  now,
+  openAt,
+  earlyMs = 2 * 60 * 1000,
+  lateMs = 5 * 60 * 1000
+) {
+  const t = now.getTime();
+  const o = openAt.getTime();
+  return t >= o - earlyMs && t <= o + lateMs;
+}
+
+export async function clickReserveAndFinish(page) {
+  const reserveBtn = page.getByRole("button", { name: /^Reserve$/i });
+  const finishBtn = page.getByRole("button", { name: /^Finish$/i });
+  const waitlistBtn = page.getByRole("button", { name: /waitlist/i });
+
+  const start = Date.now();
+
+  while (Date.now() - start < RESERVE_MAX_WAIT_MS) {
+    if (await reserveBtn.isVisible().catch(() => false)) {
+      console.log("Reserve visible. Clicking Reserve...");
+      await reserveBtn.click();
+
+      console.log("Waiting for Finish...");
+      await finishBtn.waitFor({ state: "visible", timeout: 15000 });
+      await finishBtn.click();
+
+      console.log("Finish clicked. Reservation complete.");
+      return;
+    }
+
+    if (await waitlistBtn.isVisible().catch(() => false)) {
+      console.log("Class is waitlisted. Stopping retries.");
+      return;
+    }
+
+    await sleep(RESERVE_RETRY_MS);
+    await page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+  }
+
+  throw new Error("Timed out (5 minutes) waiting for Reserve button.");
+}
+
+export async function dismissCookieBanner(page) {
+  const acceptBtn = page.getByRole("button", { name: /accept all/i });
+  try {
+    await acceptBtn.waitFor({ state: "visible", timeout: 6000 });
+    console.log("Cookie banner detected. Clicking Accept All...");
+    await acceptBtn.click();
+    await sleep(400);
+  } catch {
+    console.log("No cookie banner.");
+  }
 }

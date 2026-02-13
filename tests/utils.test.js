@@ -16,7 +16,7 @@ describe("date logic", () => {
     expect(classDate.getDay()).toBe(1);
   });
 
-  it("Open time is day before at 20:00", () => {
+  it("Open time is 8 days before at 20:00", () => {
     const classDate = new Date(2026, 2, 2, 0, 0, 0); // Mar 2, 2026
     const openAt = computeOpenTimeForClass(classDate, 20, 0, 0);
 
