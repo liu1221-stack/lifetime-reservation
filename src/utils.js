@@ -23,7 +23,9 @@ export function toISODate(date) {
 
 // Sun=0 Mon=1 ... Sat=6
 export function nextWeekdayOnOrAfter(baseDate, weekday) {
+  // FRIDAY Feb 22 
   const date = new Date(baseDate);
+  // (1 - 0 + 7) % 7 = 1
   const diff = (weekday - date.getDay() + 7) % 7;
   date.setDate(date.getDate() + diff);
   return date;
@@ -111,7 +113,15 @@ export async function clickReserveAndFinish(page) {
     }
 
     if (await waitlistBtn.isVisible().catch(() => false)) {
-      console.log("Class is waitlisted. Stopping retries.");
+      console.log("Class is waitlisted. Clicking Waitlist.");
+      await waitlistBtn.click();
+
+      console.log("Waiting for Finish...");
+      await finishBtn.waitFor({ state: "visible", timeout: 15000 });
+      await finishBtn.click();
+      
+
+      console.log("Finish clicked. WalitList complete.");
       return;
     }
 
