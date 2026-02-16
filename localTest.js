@@ -20,7 +20,7 @@ const OPEN_MINUTE = 0;
 const OPEN_SECOND = 0;
 
 // Login early and wait on the page
-const READY_MINUTES_BEFORE = 1;
+const READY_MINUTES_BEFORE = 3;
 
 // Retry behavior after entering details page
 const RESERVE_RETRY_MS = 400;
