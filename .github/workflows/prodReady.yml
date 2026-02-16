@@ -6,9 +6,6 @@ on:
     - cron: "55 1 * * 1"
     - cron: "55 2 * * 1"
 
-  push:
-    branches: [ main ]
-
 concurrency:
   group: lt-prod-ready
   cancel-in-progress: true
