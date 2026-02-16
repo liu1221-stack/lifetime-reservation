@@ -13,7 +13,7 @@
   // Reservation open time (local time)
   export const OPEN_TIME = {
     hour: 23,
-    minute: 31,
+    minute: 32,
     second: 0,
   };
   
