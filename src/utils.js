@@ -98,49 +98,38 @@ export async function clickReserveAndFinish(page) {
   const waitlistBtn = page.getByRole("button", { name: /waitlist/i });
 
   const start = Date.now();
-  const url = page.url();
-
-  let attempt = 0;
 
   while (Date.now() - start < RESERVE_MAX_WAIT_MS) {
-    // If button is there, click immediately
     if (await reserveBtn.isVisible().catch(() => false)) {
-      await reserveBtn.click({ timeout: 800 }).catch(() => {});
-      await finishBtn.waitFor({ state: "visible", timeout: 8000 });
+      console.log("Reserve visible. Clicking Reserve...");
+      await reserveBtn.click();
+
+      console.log("Waiting for Finish...");
+      await finishBtn.waitFor({ state: "visible", timeout: 15000 });
       await finishBtn.click();
+
       console.log("Finish clicked. Reservation complete.");
       return;
     }
 
     if (await waitlistBtn.isVisible().catch(() => false)) {
-      await waitlistBtn.click({ timeout: 800 }).catch(() => {});
-      await finishBtn.waitFor({ state: "visible", timeout: 8000 });
+      console.log("Class is waitlisted. Clicking Waitlist.");
+      await waitlistBtn.click();
+
+      console.log("Waiting for Finish...");
+      await finishBtn.waitFor({ state: "visible", timeout: 15000 });
       await finishBtn.click();
-      console.log("Finish clicked. Waitlist complete.");
+      
+
+      console.log("Finish clicked. WalitList complete.");
       return;
     }
 
-    // Refresh strategy:
-    // Rapid early attempts right after open
-    // Then slow down slightly to avoid thrashing
-    attempt++;
-
-    if (attempt <= 20) {
-      // First ~1.5 seconds: aggressive
-      await page.goto(url, { waitUntil: "domcontentloaded" }).catch(() => {});
-      await sleep(50);
-    } else if (attempt <= 120) {
-      // Next ~10 seconds: still fast
-      await page.goto(url, { waitUntil: "domcontentloaded" }).catch(() => {});
-      await sleep(120);
-    } else {
-      // After that: keep trying but less aggressive
-      await page.goto(url, { waitUntil: "domcontentloaded" }).catch(() => {});
-      await sleep(250);
-    }
+    await sleep(RESERVE_RETRY_MS);
+    await page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
   }
 
-  throw new Error("Timed out waiting for Reserve/Waitlist.");
+  throw new Error("Timed out (5 minutes) waiting for Reserve button.");
 }
 
 export async function dismissCookieBanner(page) {
