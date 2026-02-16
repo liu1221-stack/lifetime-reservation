@@ -5,7 +5,7 @@ on:
   schedule:
     # Runs every 5 minutes on Sundays (UTC)
     # This avoids DST issues. Your script should "bail" unless it's within your window.
-    - cron: "*/10 * * * 0"
+    - cron: "* * * * *"
 
 jobs:
   run:
